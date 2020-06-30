@@ -5,7 +5,7 @@ from setuptools_rust import RustExtension
 
 setup_requires = [
     "setuptools-rust>=0.10.6",
-    "wheel"
+    "wheel>=0.34.2"
 ]
 
 install_requires = []
@@ -13,6 +13,8 @@ install_requires = []
 setup(
     name="riso8601",
     version="0.1.0",
+    author='Suhail Patel',
+    author_email='me@suhailpatel.com',
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Development Status :: 3 - Alpha",
