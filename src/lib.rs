@@ -75,7 +75,7 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
     };
 
     let minute: u8 = match input[point..point + 2].parse() {
-        Ok(val) if val <= 23 => val,
+        Ok(val) if val <= 59 => val,
         Ok(_) => return Err(ParseError::py_err("minute needs to be between 00 and 59")),
         _ => return Err(ParseError::py_err("invalid time string (minute)")),
     };
