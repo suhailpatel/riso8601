@@ -21,6 +21,13 @@ Some derivations may also be supported but that behaviour is subject to change. 
 
 # Usage
 
+This is a toy project so it's not on PyPI. You can check out the source and install it locally (tested with Rust 1.40.0 and Python 3.7):
+```
+$ pip install -r requirements-dev.txt
+$ python setup.py install
+```
+
+To use it once installed:
 ```
 >>> import riso8601
 >>> riso8601.parse_datetime("2020-07-16T19:20:10.10000-12:00")
