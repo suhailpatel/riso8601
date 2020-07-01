@@ -4,6 +4,21 @@ riso8601 is a Python module which parses ISO8601 datetimes. It is written in Rus
 
 🚨 This module has not been extensively tested against the entire corpus of ISO8601 datetimes. It's a toy implementation built against Python 3.7. If you need something more battle-tested, check out the [ciso8601](https://pypi.org/project/ciso8601/) library instead. 
 
+## Supported Subset
+
+This module does not support the full subset of ISO8601 times. It supports:
+- `YYYYMMDDThhmmss`
+- `YYYY-MM-DDThh:mm:ss`
+- `YYYY-MM-DDThh:mm:ss.ssssss`
+
+Timezones are also supported as a suffix in the following formats:
+- `Z`
+- `+hh` and `-hh`
+- `+hhmm` and `-hhmm`
+- `+hh:mm` and `-hh:mm`
+
+Some derivations may also be supported but that behaviour is subject to change. If you are unsure, check out the `tests`.
+
 # Usage
 
 ```
