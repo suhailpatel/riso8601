@@ -1,0 +1,31 @@
+language: python
+os: linux
+dist: bionic
+
+cache:
+  pip: true
+  cargo: true
+
+jobs:
+  include:
+    - name: Python 3.6
+      python: "3.6"
+    - name: Python 3.7
+      python: "3.7"
+    - name: Python 3.8
+      python: "3.8"
+
+env:
+  global:
+    - TRAVIS_RUST_VERSION=stable
+    - RUST_BACKTRACE=1
+
+before_install:
+  - source ./ci/setup.sh
+  - curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2 | tar jxf -
+
+install:
+  - pip install -r requirements-dev.txt
+
+script:
+  - pytest -v
