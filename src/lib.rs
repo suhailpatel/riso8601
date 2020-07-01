@@ -39,7 +39,7 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
     }
 
     let month: u8 = match input[point..point + 2].parse() {
-        Ok(val) if val >= 1 && val <= 12 => val,
+        Ok(val) if (1..=12).contains(&val) => val,
         Ok(_) => return Err(ParseError::py_err("month needs to be between 1-12")),
         _ => return Err(ParseError::py_err("invalid time string (month)")),
     };
@@ -51,7 +51,7 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
     };
 
     let day: u8 = match input[point..point + 2].parse() {
-        Ok(val) if val >= 1 && val <= 31 => val,
+        Ok(val) if (1..=31).contains(&val) => val,
         Ok(_) => return Err(ParseError::py_err("day needs to be between 1 and 31")),
         _ => return Err(ParseError::py_err("invalid time string (day)")),
     };
@@ -88,11 +88,17 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
         return PyDateTime::new(py, year, month, day, hour, minute, 0, 0, None);
     }
 
+    // Do a colon check, advance our point position accordingly
+    match input[point..point + 1].as_ref() {
+        ":" => point = point + 1,
+        _ => (),
+    };
+
     // Check if the next character is a colon (for seconds) or a timezone identifier (+/-)
     let second: u8 = match input[point..point + 1].as_ref() {
         "+" | "-" | "Z" => 0,
-        ":" if input.len() >= 19 => {
-            point = point + 3; // ':' plus two digits
+        _ if input.len() >= point + 2 => {
+            point = point + 2; // two digits
             match input[point - 2..point].parse() {
                 Ok(val) if val <= 59 => val,
                 Ok(_) => return Err(ParseError::py_err("seconds needs to be between 00 and 59")),
@@ -155,7 +161,7 @@ fn parse_timezone<'p>(py: Python<'p>, input: &str) -> PyResult<PyObject> {
         "Z" if input.len() == 1 => {
             return pytimezone.getattr("utc").unwrap().extract();
         }
-        "+" | "-" if input.len() - input.len() >= 3 || input.len() <= 6 => {
+        "+" | "-" if (3..=6).contains(&input.len()) => {
             let mut point = 0;
 
             // Figure out if we got a positive or negative
