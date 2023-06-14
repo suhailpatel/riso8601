@@ -21,10 +21,10 @@ Some derivations may also be supported but that behaviour is subject to change. 
 
 # Usage
 
-This is a toy project so it's not on PyPI. You can check out the source and install it locally (tested with Rust 1.40.0 and Python 3.7):
+This is a toy project so it's not on PyPI. You can check out the source and run it locally (tested with Rust 1.64.0 and Python 3.10):
 ```
-$ pip install -r requirements-dev.txt
-$ python setup.py install
+$ pip install maturin
+$ maturin develop
 ```
 
 To use it once installed:
