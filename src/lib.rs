@@ -1,12 +1,10 @@
-extern crate pyo3;
-
 use pyo3::create_exception;
-use pyo3::exceptions::Exception;
+use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use pyo3::types::{PyDateTime, PyDelta};
+use pyo3::types::{PyDateTime, PyDelta, PyTzInfo, timezone_utc};
 use pyo3::wrap_pyfunction;
 
-create_exception!(riso8601, ParseError, Exception);
+create_exception!(riso8601, ParseError, PyException);
 
 #[pyfunction]
 fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
@@ -20,7 +18,7 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
 
     // Sanity check for a minimum length of 13 characters (shortest)
     if input.len() < 13 {
-        return Err(ParseError::py_err("invalid time string"));
+        return Err(ParseError::new_err("invalid time string"));
     }
 
     // We need to keep track of our index which we are currently pointing to
@@ -28,8 +26,8 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
 
     let year: i32 = match input[point..point + 4].parse() {
         Ok(val) if val > 0 => val,
-        Ok(_) => return Err(ParseError::py_err("year needs to be above 0")),
-        _ => return Err(ParseError::py_err("invalid time string (year)")),
+        Ok(_) => return Err(ParseError::new_err("year needs to be above 0")),
+        _ => return Err(ParseError::new_err("invalid time string (year)")),
     };
 
     // Do a dash check, advance our point position accordingly
@@ -40,8 +38,8 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
 
     let month: u8 = match input[point..point + 2].parse() {
         Ok(val) if (1..=12).contains(&val) => val,
-        Ok(_) => return Err(ParseError::py_err("month needs to be between 1-12")),
-        _ => return Err(ParseError::py_err("invalid time string (month)")),
+        Ok(_) => return Err(ParseError::new_err("month needs to be between 1-12")),
+        _ => return Err(ParseError::new_err("invalid time string (month)")),
     };
 
     // Do a dash check, advance our point position accordingly
@@ -52,8 +50,8 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
 
     let day: u8 = match input[point..point + 2].parse() {
         Ok(val) if (1..=31).contains(&val) => val,
-        Ok(_) => return Err(ParseError::py_err("day needs to be between 1 and 31")),
-        _ => return Err(ParseError::py_err("invalid time string (day)")),
+        Ok(_) => return Err(ParseError::new_err("day needs to be between 1 and 31")),
+        _ => return Err(ParseError::new_err("invalid time string (day)")),
     };
 
     // Do a check for a 'T', advance our point position accordingly
@@ -64,8 +62,8 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
 
     let hour: u8 = match input[point..point + 2].parse() {
         Ok(val) if val <= 23 => val,
-        Ok(_) => return Err(ParseError::py_err("hour needs to be between 00 and 23")),
-        _ => return Err(ParseError::py_err("invalid time string (hour)")),
+        Ok(_) => return Err(ParseError::new_err("hour needs to be between 00 and 23")),
+        _ => return Err(ParseError::new_err("invalid time string (hour)")),
     };
 
     // Do a colon check, advance our point position accordingly
@@ -76,8 +74,8 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
 
     let minute: u8 = match input[point..point + 2].parse() {
         Ok(val) if val <= 59 => val,
-        Ok(_) => return Err(ParseError::py_err("minute needs to be between 00 and 59")),
-        _ => return Err(ParseError::py_err("invalid time string (minute)")),
+        Ok(_) => return Err(ParseError::new_err("minute needs to be between 00 and 59")),
+        _ => return Err(ParseError::new_err("invalid time string (minute)")),
     };
 
     // Advance our pointer by 2 characters as we have completed minute
@@ -101,11 +99,11 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
             point = point + 2; // two digits
             match input[point - 2..point].parse() {
                 Ok(val) if val <= 59 => val,
-                Ok(_) => return Err(ParseError::py_err("seconds needs to be between 00 and 59")),
-                _ => return Err(ParseError::py_err("invalid time string (second)")),
+                Ok(_) => return Err(ParseError::new_err("seconds needs to be between 00 and 59")),
+                _ => return Err(ParseError::new_err("invalid time string (second)")),
             }
         }
-        _ => return Err(ParseError::py_err("invalid time string (second)")),
+        _ => return Err(ParseError::new_err("invalid time string (second)")),
     };
 
     // Check if we've reached the end of our input yet?
@@ -129,14 +127,14 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
             match ms_str.parse() {
                 Ok(val) if val <= 999999 => val,
                 Ok(_) => {
-                    return Err(ParseError::py_err(
+                    return Err(ParseError::new_err(
                         "microseconds needs to be between 0 and 999999",
                     ))
                 }
-                _ => return Err(ParseError::py_err("invalid time string (microsecond)")),
+                _ => return Err(ParseError::new_err("invalid time string (microsecond)")),
             }
         }
-        _ => return Err(ParseError::py_err("invalid time string (microsecond)")),
+        _ => return Err(ParseError::new_err("invalid time string (microsecond)")),
     };
 
     // Check if we've reached the end of our input yet?
@@ -144,22 +142,21 @@ fn parse_datetime<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyDateTime> {
         return PyDateTime::new(py, year, month, day, hour, minute, second, ms, None);
     }
 
-    let tz: PyObject = match parse_timezone(py, input[point..].as_ref()) {
+    let tz: &PyTzInfo = match parse_timezone(py, input[point..].as_ref()) {
         Ok(val) => val,
         Err(e) => return Err(e),
     };
 
-    return PyDateTime::new(py, year, month, day, hour, minute, second, ms, Some(&tz));
+    return PyDateTime::new(py, year, month, day, hour, minute, second, ms, Some(tz));
 }
 
-fn parse_timezone<'p>(py: Python<'p>, input: &str) -> PyResult<PyObject> {
+fn parse_timezone<'p>(py: Python<'p>, input: &str) -> PyResult<&'p PyTzInfo> {
     // Import the stuff we're going to need from the stdlib
-    let pydatetime = py.import("datetime").map_err(|e| e.print(py)).unwrap();
-    let pytimezone = pydatetime.get("timezone").unwrap();
+    let pydatetime = PyModule::import(py, "datetime")?;
 
     match input[0..1].as_ref() {
         "Z" if input.len() == 1 => {
-            return pytimezone.getattr("utc").unwrap().extract();
+            return Ok(timezone_utc(py));
         }
         "+" | "-" if (3..=6).contains(&input.len()) => {
             let mut point = 0;
@@ -172,14 +169,14 @@ fn parse_timezone<'p>(py: Python<'p>, input: &str) -> PyResult<PyObject> {
 
             let hr_val: i32 = match input[point + 1..point + 3].parse() {
                 Ok(val) => val,
-                _ => return Err(ParseError::py_err("invalid time string (tz hr)")),
+                _ => return Err(ParseError::new_err("invalid time string (tz hr)")),
             };
 
             // Short circuit if we got nothing else
             if input.len() == 3 {
                 let tzsecs = hr_val * 60 * 60;
                 let delta = PyDelta::new(py, 0, multiplier * tzsecs, 0, false).unwrap();
-                return pydatetime.call1("timezone", (delta,)).unwrap().extract();
+                return pydatetime.call_method1("timezone", (delta,)).unwrap().extract();
             }
 
             point = point + 3;
@@ -192,25 +189,25 @@ fn parse_timezone<'p>(py: Python<'p>, input: &str) -> PyResult<PyObject> {
 
             // Make sure we have two more items remaining for our min specifier
             if input.len() - point != 2 {
-                return Err(ParseError::py_err("invalid time string (timezone)"));
+                return Err(ParseError::new_err("invalid time string (timezone)"));
             }
 
             let min_val: i32 = match input[point..point + 2].parse() {
                 Ok(val) => val,
-                _ => return Err(ParseError::py_err("invalid time string (tz min)")),
+                _ => return Err(ParseError::new_err("invalid time string (tz min)")),
             };
 
             let tzsecs = (hr_val * 60 * 60) + (min_val * 60);
             let delta = PyDelta::new(py, 0, multiplier * tzsecs, 0, false).unwrap();
-            return pydatetime.call1("timezone", (delta,)).unwrap().extract();
+            return pydatetime.call_method1("timezone", (delta,)).unwrap().extract().into();
         }
-        _ => return Err(ParseError::py_err("invalid time string (timezone)")),
+        _ => return Err(ParseError::new_err("invalid time string (timezone)")),
     }
 }
 
+/// A Python module implemented in Rust.
 #[pymodule]
-fn riso8601(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn riso8601(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_datetime))?;
-
     Ok(())
 }
